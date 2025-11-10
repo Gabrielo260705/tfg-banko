@@ -71,9 +71,18 @@ export const getCurrentUser = async () => {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   console.log('getCurrentUser - user:', user);
+  console.log('getCurrentUser - user.id:', user?.id);
   console.log('getCurrentUser - userError:', userError);
 
   if (!user) return null;
+
+  // First check if the profile exists at all
+  const { count } = await supabase
+    .from('users_profile')
+    .select('*', { count: 'exact', head: true })
+    .eq('id', user.id);
+
+  console.log('Profile count for user:', count);
 
   const { data: profile, error: profileError } = await supabase
     .from('users_profile')
