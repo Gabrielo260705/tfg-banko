@@ -65,16 +65,37 @@ export const InsurancesView = () => {
   };
 
   const confirmContract = async () => {
-    if (!profile || !selectedType) return;
+    console.log('confirmContract called');
+    console.log('profile:', profile);
+    console.log('selectedType:', selectedType);
+
+    if (!profile || !selectedType) {
+      console.log('Missing profile or selectedType, returning early');
+      alert('Error: Faltan datos necesarios para contratar el seguro');
+      return;
+    }
 
     const insurance = insuranceData[selectedType];
+    console.log('insurance data:', insurance);
+
     const policyNumber = `POL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     const startDate = new Date();
     const endDate = new Date();
     endDate.setFullYear(endDate.getFullYear() + 1);
 
+    console.log('Attempting to insert insurance:', {
+      user_id: profile.id,
+      insurance_type: selectedType,
+      policy_number: policyNumber,
+      premium_amount: insurance.price,
+      coverage_amount: insurance.coverage,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      is_active: true,
+    });
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('insurances')
         .insert({
           user_id: profile.id,
@@ -85,7 +106,10 @@ export const InsurancesView = () => {
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
           is_active: true,
-        });
+        })
+        .select();
+
+      console.log('Insert result:', { data, error });
 
       if (error) {
         console.error('Error contracting insurance:', error);
@@ -98,7 +122,7 @@ export const InsurancesView = () => {
       }
     } catch (err) {
       console.error('Exception contracting insurance:', err);
-      alert('Error al contratar seguro');
+      alert('Error al contratar seguro: ' + JSON.stringify(err));
     }
   };
 
