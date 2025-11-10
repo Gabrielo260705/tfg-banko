@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, Wallet, ArrowLeftRight, Download } from 'lucide-react';
-import { supabase, Account } from '../../lib/supabase';
+import { Plus, Wallet, ArrowLeftRight, Download, FileText } from 'lucide-react';
+import { supabase, Account, Transaction } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const AccountsView = () => {
@@ -9,7 +9,10 @@ export const AccountsView = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
   const [selectedAccountForTransfer, setSelectedAccountForTransfer] = useState<Account | null>(null);
+  const [selectedAccountForTransactions, setSelectedAccountForTransactions] = useState<Account | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [newAccount, setNewAccount] = useState({
     currency: 'EUR' as 'EUR' | 'GBP' | 'USD',
     account_type: 'checking' as 'checking' | 'savings',
@@ -85,6 +88,16 @@ export const AccountsView = () => {
     }, 0);
   };
 
+  const loadTransactions = async (accountId: string) => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('account_id', accountId)
+      .order('created_at', { ascending: false });
+
+    setTransactions(data || []);
+  };
+
   const executeTransfer = async () => {
     if (!transfer.from_account_id || !transfer.to_account_number || transfer.amount <= 0) {
       alert('Por favor completa todos los campos');
@@ -99,33 +112,60 @@ export const AccountsView = () => {
       return;
     }
 
-    const newBalance = Number(fromAccount.balance) - transfer.amount;
-
-    const { error: accountError } = await supabase
+    const { data: toAccount } = await supabase
       .from('accounts')
-      .update({ balance: newBalance })
-      .eq('id', transfer.from_account_id);
+      .select('*')
+      .eq('account_number', transfer.to_account_number)
+      .maybeSingle();
 
-    if (accountError) {
-      alert('Error al actualizar la cuenta');
+    if (!toAccount) {
+      alert('Cuenta destino no encontrada');
       return;
     }
 
-    const { error: transactionError } = await supabase
-      .from('transactions')
-      .insert({
+    const newBalanceFrom = Number(fromAccount.balance) - transfer.amount;
+    const newBalanceTo = Number(toAccount.balance) + transfer.amount;
+
+    const { error: fromError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalanceFrom })
+      .eq('id', transfer.from_account_id);
+
+    if (fromError) {
+      alert('Error al actualizar la cuenta origen');
+      return;
+    }
+
+    const { error: toError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalanceTo })
+      .eq('id', toAccount.id);
+
+    if (toError) {
+      alert('Error al actualizar la cuenta destino');
+      return;
+    }
+
+    await supabase.from('transactions').insert([
+      {
         account_id: transfer.from_account_id,
         transaction_type: 'transfer',
         amount: -transfer.amount,
         currency: fromAccount.currency,
-        description: transfer.description || 'Transferencia',
+        description: `${transfer.description || 'Transferencia'} - A: ${transfer.to_account_number}`,
         recipient_account: transfer.to_account_number,
         is_suspicious: false,
-      });
-
-    if (transactionError) {
-      console.error('Error registering transaction:', transactionError);
-    }
+      },
+      {
+        account_id: toAccount.id,
+        transaction_type: 'deposit',
+        amount: transfer.amount,
+        currency: toAccount.currency,
+        description: `${transfer.description || 'Transferencia recibida'} - De: ${fromAccount.account_number}`,
+        recipient_account: fromAccount.account_number,
+        is_suspicious: false,
+      }
+    ]);
 
     setShowTransferModal(false);
     setTransfer({
@@ -193,17 +233,28 @@ export const AccountsView = () => {
             <div className="text-xs text-gray-500 font-mono">
               {account.account_number}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-700 flex gap-2">
+            <div className="mt-4 pt-4 border-t border-gray-700 grid grid-cols-3 gap-2">
               <button
                 onClick={() => {
                   setSelectedAccountForTransfer(account);
                   setTransfer({ ...transfer, from_account_id: account.id });
                   setShowTransferModal(true);
                 }}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <ArrowLeftRight className="h-4 w-4" />
                 Transferir
+              </button>
+              <button
+                onClick={async () => {
+                  setSelectedAccountForTransactions(account);
+                  await loadTransactions(account.id);
+                  setShowTransactionsModal(true);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                <FileText className="h-4 w-4" />
+                Movimientos
               </button>
               <button
                 onClick={() => {
@@ -216,7 +267,7 @@ export const AccountsView = () => {
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <Download className="h-4 w-4" />
                 Extracto
@@ -278,6 +329,70 @@ export const AccountsView = () => {
                   Crear Cuenta
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTransactionsModal && selectedAccountForTransactions && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-3xl w-full max-h-[80vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Movimientos de Cuenta</h3>
+              <button
+                onClick={() => {
+                  setShowTransactionsModal(false);
+                  setSelectedAccountForTransactions(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <FileText className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="mb-4 p-4 bg-gray-800 rounded-lg">
+              <div className="text-sm text-gray-400">Cuenta</div>
+              <div className="text-lg font-semibold">{selectedAccountForTransactions.account_number}</div>
+            </div>
+            <div className="space-y-3">
+              {transactions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No hay transacciones en esta cuenta
+                </div>
+              ) : (
+                transactions.map((transaction) => (
+                  <div key={transaction.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            transaction.transaction_type === 'deposit' ? 'bg-emerald-600/20 text-emerald-500' :
+                            transaction.transaction_type === 'transfer' ? 'bg-blue-600/20 text-blue-500' :
+                            transaction.transaction_type === 'payment' ? 'bg-orange-600/20 text-orange-500' :
+                            'bg-gray-600/20 text-gray-400'
+                          }`}>
+                            {transaction.transaction_type === 'deposit' ? 'Depósito' :
+                             transaction.transaction_type === 'transfer' ? 'Transferencia' :
+                             transaction.transaction_type === 'payment' ? 'Pago' :
+                             transaction.transaction_type === 'withdrawal' ? 'Retiro' : 'Salario'}
+                          </span>
+                        </div>
+                        <div className="text-white mb-1">{transaction.description}</div>
+                        <div className="text-xs text-gray-400">
+                          {new Date(transaction.created_at).toLocaleString('es-ES')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-lg font-bold ${
+                          Number(transaction.amount) >= 0 ? 'text-emerald-500' : 'text-red-500'
+                        }`}>
+                          {Number(transaction.amount) >= 0 ? '+' : ''}€{Number(transaction.amount).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-400">{transaction.currency}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

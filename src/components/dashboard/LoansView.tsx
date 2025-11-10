@@ -64,13 +64,11 @@ export const LoansView = () => {
     if (!profile || !newLoan.account_id) return;
 
     const monthlyPayment = calculateMonthlyPayment(newLoan.amount, newLoan.interest_rate, newLoan.term_months);
-    const loanFee = newLoan.amount * 0.02;
-    const netAmount = newLoan.amount - loanFee;
 
     const selectedAccount = accounts.find(acc => acc.id === newLoan.account_id);
     if (!selectedAccount) return;
 
-    const newBalance = Number(selectedAccount.balance) + netAmount;
+    const newBalance = Number(selectedAccount.balance) + newLoan.amount;
 
     const { error: accountError } = await supabase
       .from('accounts')
@@ -91,8 +89,18 @@ export const LoansView = () => {
     if (bankAccount) {
       await supabase
         .from('accounts')
-        .update({ balance: Number(bankAccount.balance) + loanFee })
+        .update({ balance: Number(bankAccount.balance) - newLoan.amount })
         .eq('id', bankAccount.id);
+
+      await supabase.from('transactions').insert({
+        account_id: bankAccount.id,
+        transaction_type: 'payment',
+        amount: -newLoan.amount,
+        currency: 'EUR',
+        description: `Préstamo otorgado - ${newLoan.loan_type} - A: ${selectedAccount.account_number}`,
+        recipient_account: selectedAccount.account_number,
+        is_suspicious: false,
+      });
     }
 
     const { error } = await supabase
@@ -112,22 +120,12 @@ export const LoansView = () => {
       await supabase.from('transactions').insert({
         account_id: newLoan.account_id,
         transaction_type: 'deposit',
-        amount: netAmount,
+        amount: newLoan.amount,
         currency: selectedAccount.currency,
-        description: `Préstamo ${newLoan.loan_type === 'mortgage' ? 'hipotecario' : 'personal'} - Comisión: €${loanFee.toFixed(2)}`,
+        description: `Préstamo ${newLoan.loan_type === 'mortgage' ? 'hipotecario' : 'personal'} recibido`,
+        recipient_account: bankAccount?.account_number,
         is_suspicious: false,
       });
-
-      if (bankAccount) {
-        await supabase.from('transactions').insert({
-          account_id: bankAccount.id,
-          transaction_type: 'deposit',
-          amount: loanFee,
-          currency: 'EUR',
-          description: `Comisión préstamo - ${newLoan.loan_type}`,
-          is_suspicious: false,
-        });
-      }
 
       setShowRequestModal(false);
       setNewLoan({

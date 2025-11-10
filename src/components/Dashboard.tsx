@@ -9,7 +9,6 @@ import { CardsView } from './dashboard/CardsView';
 import { LoansView } from './dashboard/LoansView';
 import { InvestmentsView } from './dashboard/InvestmentsView';
 import { InsurancesView } from './dashboard/InsurancesView';
-import { TransactionsView } from './dashboard/TransactionsView';
 import { CryptoView } from './dashboard/CryptoView';
 import { ATMView } from './dashboard/ATMView';
 import { SettingsView } from './dashboard/SettingsView';
@@ -20,7 +19,7 @@ import { AdminPanelView } from './dashboard/AdminPanelView';
 import { supabase } from '../lib/supabase';
 
 type View = 'overview' | 'accounts' | 'cards' | 'loans' | 'investments' | 'insurances' |
-            'transactions' | 'crypto' | 'atm' | 'settings' | 'users' | 'approve-loans' | 'admin';
+            'crypto' | 'atm' | 'settings' | 'users' | 'approve-loans' | 'admin';
 
 export const Dashboard = () => {
   const { profile, signOut } = useAuth();
@@ -59,7 +58,6 @@ export const Dashboard = () => {
     { id: 'loans', label: 'Préstamos', icon: DollarSign },
     { id: 'investments', label: 'Inversiones', icon: TrendingUp },
     { id: 'insurances', label: 'Seguros', icon: Shield },
-    { id: 'transactions', label: 'Transacciones', icon: FileText },
     { id: 'crypto', label: 'Criptomonedas', icon: TrendingUp },
     { id: 'atm', label: 'Cajeros', icon: Building2 },
     { id: 'settings', label: 'Configuración', icon: Settings },
@@ -73,7 +71,6 @@ export const Dashboard = () => {
     { id: 'loans', label: 'Préstamos', icon: DollarSign },
     { id: 'investments', label: 'Inversiones', icon: TrendingUp },
     { id: 'insurances', label: 'Seguros', icon: Shield },
-    { id: 'transactions', label: 'Transacciones', icon: FileText },
     { id: 'crypto', label: 'Criptomonedas', icon: TrendingUp },
     { id: 'settings', label: 'Configuración', icon: Settings },
   ];
@@ -96,8 +93,6 @@ export const Dashboard = () => {
         return <InvestmentsView />;
       case 'insurances':
         return <InsurancesView />;
-      case 'transactions':
-        return <TransactionsView />;
       case 'crypto':
         return <CryptoView />;
       case 'atm':
