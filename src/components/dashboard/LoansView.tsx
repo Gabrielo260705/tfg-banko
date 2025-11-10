@@ -64,11 +64,13 @@ export const LoansView = () => {
     if (!profile || !newLoan.account_id) return;
 
     const monthlyPayment = calculateMonthlyPayment(newLoan.amount, newLoan.interest_rate, newLoan.term_months);
+    const loanFee = newLoan.amount * 0.02;
+    const netAmount = newLoan.amount - loanFee;
 
     const selectedAccount = accounts.find(acc => acc.id === newLoan.account_id);
     if (!selectedAccount) return;
 
-    const newBalance = Number(selectedAccount.balance) + newLoan.amount;
+    const newBalance = Number(selectedAccount.balance) + netAmount;
 
     const { error: accountError } = await supabase
       .from('accounts')
@@ -78,6 +80,19 @@ export const LoansView = () => {
     if (accountError) {
       alert('Error al actualizar la cuenta');
       return;
+    }
+
+    const { data: bankAccount } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
+      .maybeSingle();
+
+    if (bankAccount) {
+      await supabase
+        .from('accounts')
+        .update({ balance: Number(bankAccount.balance) + loanFee })
+        .eq('id', bankAccount.id);
     }
 
     const { error } = await supabase
@@ -94,6 +109,26 @@ export const LoansView = () => {
       });
 
     if (!error) {
+      await supabase.from('transactions').insert({
+        account_id: newLoan.account_id,
+        transaction_type: 'deposit',
+        amount: netAmount,
+        currency: selectedAccount.currency,
+        description: `Préstamo ${newLoan.loan_type === 'mortgage' ? 'hipotecario' : 'personal'} - Comisión: €${loanFee.toFixed(2)}`,
+        is_suspicious: false,
+      });
+
+      if (bankAccount) {
+        await supabase.from('transactions').insert({
+          account_id: bankAccount.id,
+          transaction_type: 'deposit',
+          amount: loanFee,
+          currency: 'EUR',
+          description: `Comisión préstamo - ${newLoan.loan_type}`,
+          is_suspicious: false,
+        });
+      }
+
       setShowRequestModal(false);
       setNewLoan({
         loan_type: 'personal',
@@ -132,6 +167,19 @@ export const LoansView = () => {
       return;
     }
 
+    const { data: bankAccount } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
+      .maybeSingle();
+
+    if (bankAccount) {
+      await supabase
+        .from('accounts')
+        .update({ balance: Number(bankAccount.balance) + Number(selectedLoan.monthly_payment) })
+        .eq('id', bankAccount.id);
+    }
+
     const newStatus = newRemainingBalance <= 0 ? 'paid' : 'active';
 
     const { error: loanError } = await supabase
@@ -146,6 +194,26 @@ export const LoansView = () => {
     if (loanError) {
       alert('Error al actualizar el préstamo');
       return;
+    }
+
+    await supabase.from('transactions').insert({
+      account_id: selectedAccountId,
+      transaction_type: 'payment',
+      amount: -Number(selectedLoan.monthly_payment),
+      currency: account.currency,
+      description: `Pago de plazo - Préstamo ${selectedLoan.loan_type}`,
+      is_suspicious: false,
+    });
+
+    if (bankAccount) {
+      await supabase.from('transactions').insert({
+        account_id: bankAccount.id,
+        transaction_type: 'deposit',
+        amount: Number(selectedLoan.monthly_payment),
+        currency: 'EUR',
+        description: `Pago préstamo recibido - ${selectedLoan.loan_type}`,
+        is_suspicious: false,
+      });
     }
 
     setShowPayModal(false);

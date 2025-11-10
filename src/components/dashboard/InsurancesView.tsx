@@ -109,6 +109,11 @@ export const InsurancesView = () => {
       return;
     }
 
+    if (Number(selectedAccount.balance) < insurance.price) {
+      alert('Saldo insuficiente en la cuenta seleccionada');
+      return;
+    }
+
     const newBalance = Number(selectedAccount.balance) - insurance.price;
 
     const { error: accountError } = await supabase
@@ -119,6 +124,19 @@ export const InsurancesView = () => {
     if (accountError) {
       alert('Error al actualizar la cuenta');
       return;
+    }
+
+    const { data: bankAccount } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
+      .maybeSingle();
+
+    if (bankAccount) {
+      await supabase
+        .from('accounts')
+        .update({ balance: Number(bankAccount.balance) + insurance.price })
+        .eq('id', bankAccount.id);
     }
 
     const policyNumber = `POL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -158,7 +176,27 @@ export const InsurancesView = () => {
         console.error('Error contracting insurance:', error);
         alert('Error al contratar seguro: ' + error.message);
       } else {
-        alert('¡Seguro contratado con éxito!\nPóliza: ' + policyNumber);
+        await supabase.from('transactions').insert({
+          account_id: selectedAccountId,
+          transaction_type: 'payment',
+          amount: -insurance.price,
+          currency: selectedAccount.currency,
+          description: `Seguro ${insurance.name} - P\u00f3liza: ${policyNumber}`,
+          is_suspicious: false,
+        });
+
+        if (bankAccount) {
+          await supabase.from('transactions').insert({
+            account_id: bankAccount.id,
+            transaction_type: 'deposit',
+            amount: insurance.price,
+            currency: 'EUR',
+            description: `Pago seguro recibido - ${insurance.name}`,
+            is_suspicious: false,
+          });
+        }
+
+        alert('\u00a1Seguro contratado con \u00e9xito!\nP\u00f3liza: ' + policyNumber);
         setShowContractModal(false);
         setSelectedAccountId('');
         loadMyInsurances();

@@ -66,7 +66,15 @@ export const InvestmentsView = () => {
       return;
     }
 
-    const newBalance = Number(selectedAccount.balance) - newInvestment.amount_invested;
+    const investmentFee = newInvestment.amount_invested * 0.01;
+    const totalCost = newInvestment.amount_invested + investmentFee;
+
+    if (Number(selectedAccount.balance) < totalCost) {
+      alert('Saldo insuficiente para cubrir la inversión y la comisión');
+      return;
+    }
+
+    const newBalance = Number(selectedAccount.balance) - totalCost;
 
     const { error: accountError } = await supabase
       .from('accounts')
@@ -76,6 +84,19 @@ export const InvestmentsView = () => {
     if (accountError) {
       alert('Error al actualizar la cuenta');
       return;
+    }
+
+    const { data: bankAccount } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
+      .maybeSingle();
+
+    if (bankAccount) {
+      await supabase
+        .from('accounts')
+        .update({ balance: Number(bankAccount.balance) + investmentFee })
+        .eq('id', bankAccount.id);
     }
 
     const { error } = await supabase
@@ -90,6 +111,26 @@ export const InvestmentsView = () => {
       });
 
     if (!error) {
+      await supabase.from('transactions').insert({
+        account_id: newInvestment.account_id,
+        transaction_type: 'payment',
+        amount: -totalCost,
+        currency: selectedAccount.currency,
+        description: `Inversión en ${newInvestment.name} - Comisión: €${investmentFee.toFixed(2)}`,
+        is_suspicious: false,
+      });
+
+      if (bankAccount) {
+        await supabase.from('transactions').insert({
+          account_id: bankAccount.id,
+          transaction_type: 'deposit',
+          amount: investmentFee,
+          currency: 'EUR',
+          description: `Comisión inversión - ${newInvestment.name}`,
+          is_suspicious: false,
+        });
+      }
+
       setShowCreateModal(false);
       setNewInvestment({
         investment_type: 'stocks',
@@ -109,7 +150,10 @@ export const InvestmentsView = () => {
     const account = accounts.find(acc => acc.id === sellAccountId);
     if (!account) return;
 
-    const newBalance = Number(account.balance) + Number(selectedInvestment.current_value);
+    const sellFee = Number(selectedInvestment.current_value) * 0.01;
+    const netAmount = Number(selectedInvestment.current_value) - sellFee;
+
+    const newBalance = Number(account.balance) + netAmount;
 
     const { error: accountError } = await supabase
       .from('accounts')
@@ -121,6 +165,19 @@ export const InvestmentsView = () => {
       return;
     }
 
+    const { data: bankAccount } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
+      .maybeSingle();
+
+    if (bankAccount) {
+      await supabase
+        .from('accounts')
+        .update({ balance: Number(bankAccount.balance) + sellFee })
+        .eq('id', bankAccount.id);
+    }
+
     const { error: investmentError } = await supabase
       .from('investments')
       .delete()
@@ -129,6 +186,26 @@ export const InvestmentsView = () => {
     if (investmentError) {
       alert('Error al vender la inversión');
       return;
+    }
+
+    await supabase.from('transactions').insert({
+      account_id: sellAccountId,
+      transaction_type: 'deposit',
+      amount: netAmount,
+      currency: account.currency,
+      description: `Venta de ${selectedInvestment.name} - Comisión: €${sellFee.toFixed(2)}`,
+      is_suspicious: false,
+    });
+
+    if (bankAccount) {
+      await supabase.from('transactions').insert({
+        account_id: bankAccount.id,
+        transaction_type: 'deposit',
+        amount: sellFee,
+        currency: 'EUR',
+        description: `Comisión venta - ${selectedInvestment.name}`,
+        is_suspicious: false,
+      });
     }
 
     setShowSellModal(false);

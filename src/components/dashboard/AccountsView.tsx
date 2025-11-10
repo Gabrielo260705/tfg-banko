@@ -9,9 +9,16 @@ export const AccountsView = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedAccountForTransfer, setSelectedAccountForTransfer] = useState<Account | null>(null);
   const [newAccount, setNewAccount] = useState({
     currency: 'EUR' as 'EUR' | 'GBP' | 'USD',
     account_type: 'checking' as 'checking' | 'savings',
+  });
+  const [transfer, setTransfer] = useState({
+    from_account_id: '',
+    to_account_number: '',
+    amount: 0,
+    description: '',
   });
   const [exchangeRates] = useState({ EUR: 1, GBP: 0.86, USD: 1.09 });
 
@@ -78,6 +85,59 @@ export const AccountsView = () => {
     }, 0);
   };
 
+  const executeTransfer = async () => {
+    if (!transfer.from_account_id || !transfer.to_account_number || transfer.amount <= 0) {
+      alert('Por favor completa todos los campos');
+      return;
+    }
+
+    const fromAccount = accounts.find(acc => acc.id === transfer.from_account_id);
+    if (!fromAccount) return;
+
+    if (Number(fromAccount.balance) < transfer.amount) {
+      alert('Saldo insuficiente en la cuenta origen');
+      return;
+    }
+
+    const newBalance = Number(fromAccount.balance) - transfer.amount;
+
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', transfer.from_account_id);
+
+    if (accountError) {
+      alert('Error al actualizar la cuenta');
+      return;
+    }
+
+    const { error: transactionError } = await supabase
+      .from('transactions')
+      .insert({
+        account_id: transfer.from_account_id,
+        transaction_type: 'transfer',
+        amount: -transfer.amount,
+        currency: fromAccount.currency,
+        description: transfer.description || 'Transferencia',
+        recipient_account: transfer.to_account_number,
+        is_suspicious: false,
+      });
+
+    if (transactionError) {
+      console.error('Error registering transaction:', transactionError);
+    }
+
+    setShowTransferModal(false);
+    setTransfer({
+      from_account_id: '',
+      to_account_number: '',
+      amount: 0,
+      description: '',
+    });
+    loadAccounts();
+    alert('Transferencia realizada con éxito');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -135,7 +195,11 @@ export const AccountsView = () => {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-700 flex gap-2">
               <button
-                onClick={() => setShowTransferModal(true)}
+                onClick={() => {
+                  setSelectedAccountForTransfer(account);
+                  setTransfer({ ...transfer, from_account_id: account.id });
+                  setShowTransferModal(true);
+                }}
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <ArrowLeftRight className="h-4 w-4" />
@@ -219,7 +283,7 @@ export const AccountsView = () => {
         </div>
       )}
 
-      {showTransferModal && (
+      {showTransferModal && selectedAccountForTransfer && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4">Realizar Transferencia</h3>
@@ -228,13 +292,9 @@ export const AccountsView = () => {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Cuenta Origen
                 </label>
-                <select className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600">
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.account_number} ({acc.currency} - €{Number(acc.balance).toFixed(2)})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
+                  {selectedAccountForTransfer.account_number} ({selectedAccountForTransfer.currency} - €{Number(selectedAccountForTransfer.balance).toFixed(2)})
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -242,6 +302,8 @@ export const AccountsView = () => {
                 </label>
                 <input
                   type="text"
+                  value={transfer.to_account_number}
+                  onChange={(e) => setTransfer({ ...transfer, to_account_number: e.target.value })}
                   placeholder="ES1234567890123456789012"
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
                 />
@@ -252,8 +314,12 @@ export const AccountsView = () => {
                 </label>
                 <input
                   type="number"
+                  value={transfer.amount || ''}
+                  onChange={(e) => setTransfer({ ...transfer, amount: Number(e.target.value) })}
                   placeholder="0.00"
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  min="0.01"
+                  step="0.01"
                 />
               </div>
               <div>
@@ -262,18 +328,33 @@ export const AccountsView = () => {
                 </label>
                 <input
                   type="text"
+                  value={transfer.description}
+                  onChange={(e) => setTransfer({ ...transfer, description: e.target.value })}
                   placeholder="Descripción de la transferencia"
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
                 />
               </div>
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => setShowTransferModal(false)}
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setSelectedAccountForTransfer(null);
+                    setTransfer({
+                      from_account_id: '',
+                      to_account_number: '',
+                      amount: 0,
+                      description: '',
+                    });
+                  }}
                   className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
                 </button>
-                <button className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+                <button
+                  onClick={executeTransfer}
+                  disabled={!transfer.to_account_number || transfer.amount <= 0}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   Transferir
                 </button>
               </div>
