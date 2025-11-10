@@ -3,6 +3,10 @@ import { Users, CreditCard, DollarSign, Shield, TrendingUp, Activity } from 'luc
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
+interface AdminPanelProps {
+  onNavigate: (view: string) => void;
+}
+
 interface SystemStats {
   totalUsers: number;
   totalAccounts: number;
@@ -14,7 +18,7 @@ interface SystemStats {
   totalBalance: number;
 }
 
-export const AdminPanelView = () => {
+export const AdminPanelView: React.FC<AdminPanelProps> = ({ onNavigate }) => {
   const { profile } = useAuth();
   const [stats, setStats] = useState<SystemStats>({
     totalUsers: 0,
@@ -163,15 +167,33 @@ export const AdminPanelView = () => {
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-xl p-6">
         <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            onClick={() => onNavigate('users')}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Users className="h-5 w-5" />
             Ver Usuarios
           </button>
-          <button className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+          <button
+            onClick={() => onNavigate('approve-loans')}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
             <DollarSign className="h-5 w-5" />
             Revisar Préstamos
           </button>
-          <button className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+          <button
+            onClick={() => {
+              const report = `REPORTE DEL SISTEMA BANKO\n\nFecha: ${new Date().toLocaleDateString('es-ES')}\n\nEstadísticas Generales:\n- Usuarios Totales: ${stats.totalUsers}\n- Cuentas Activas: ${stats.totalAccounts}\n- Tarjetas Emitidas: ${stats.totalCards}\n- Préstamos Totales: ${stats.totalLoans}\n- Seguros Contratados: ${stats.totalInsurances}\n- Inversiones Activas: ${stats.totalInvestments}\n- Préstamos Pendientes: ${stats.pendingLoans}\n- Balance Total Sistema: €${stats.totalBalance.toFixed(2)}\n\nGenerado automáticamente por el sistema`;
+              const blob = new Blob([report], { type: 'text/plain' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `reporte_sistema_${new Date().toISOString().split('T')[0]}.txt`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
             <Activity className="h-5 w-5" />
             Generar Reporte
           </button>

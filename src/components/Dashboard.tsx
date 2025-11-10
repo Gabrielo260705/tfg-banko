@@ -87,7 +87,7 @@ export const Dashboard = () => {
       case 'overview':
         return <OverviewView />;
       case 'admin':
-        return profile?.role === 'worker' ? <AdminPanelView /> : null;
+        return profile?.role === 'worker' ? <AdminPanelView onNavigate={(view) => setCurrentView(view as View)} /> : null;
       case 'accounts':
         return <AccountsView />;
       case 'cards':
