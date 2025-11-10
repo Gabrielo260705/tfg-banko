@@ -40,7 +40,12 @@ export const RegisterForm = ({ onSuccess, onLogin, onCancel }: RegisterFormProps
         onSuccess();
       }, 2000);
     } catch (err: any) {
-      setError(err.message || 'Error al crear la cuenta');
+      const errorMessage = err.message || 'Error al crear la cuenta';
+      if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('confirm')) {
+        setError('Por favor, verifica tu email para confirmar tu cuenta antes de iniciar sesión.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
