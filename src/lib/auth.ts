@@ -68,15 +68,21 @@ export const signOut = async () => {
 };
 
 export const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  console.log('getCurrentUser - user:', user);
+  console.log('getCurrentUser - userError:', userError);
 
   if (!user) return null;
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('users_profile')
     .select('*')
     .eq('id', user.id)
     .maybeSingle();
+
+  console.log('getCurrentUser - profile:', profile);
+  console.log('getCurrentUser - profileError:', profileError);
 
   return { user, profile };
 };
