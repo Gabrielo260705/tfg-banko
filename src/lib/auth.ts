@@ -70,28 +70,46 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  console.log('getCurrentUser - user:', user);
-  console.log('getCurrentUser - user.id:', user?.id);
-  console.log('getCurrentUser - userError:', userError);
-
   if (!user) return null;
 
-  // First check if the profile exists at all
-  const { count } = await supabase
-    .from('users_profile')
-    .select('*', { count: 'exact', head: true })
-    .eq('id', user.id);
-
-  console.log('Profile count for user:', count);
-
-  const { data: profile, error: profileError } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from('users_profile')
     .select('*')
     .eq('id', user.id)
     .maybeSingle();
 
-  console.log('getCurrentUser - profile:', profile);
-  console.log('getCurrentUser - profileError:', profileError);
+  // If profile doesn't exist, create it
+  if (!profile && !profileError) {
+    console.log('Profile not found, creating one...');
+
+    const { data: newProfile, error: createError } = await supabase
+      .from('users_profile')
+      .insert({
+        id: user.id,
+        full_name: user.email?.split('@')[0] || 'User',
+        email: user.email || '',
+        role: 'user',
+        password_hash: '',
+        two_fa_enabled: false,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Failed to create profile:', createError);
+    } else {
+      profile = newProfile;
+      console.log('Profile created successfully:', profile);
+
+      // Also create loyalty points entry
+      await supabase
+        .from('loyalty_points')
+        .insert({
+          user_id: user.id,
+          total_points: 0,
+        });
+    }
+  }
 
   return { user, profile };
 };
