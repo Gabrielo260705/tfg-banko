@@ -14,6 +14,16 @@ export const signUp = async (email: string, password: string, fullName: string, 
   if (authError) throw authError;
   if (!authData.user) throw new Error('User creation failed');
 
+  const { data: existingProfile } = await supabase
+    .from('users_profile')
+    .select('id')
+    .eq('id', authData.user.id)
+    .maybeSingle();
+
+  if (existingProfile) {
+    return authData;
+  }
+
   const passwordHash = hashPassword(password);
 
   const { error: profileError } = await supabase
@@ -27,16 +37,29 @@ export const signUp = async (email: string, password: string, fullName: string, 
       two_fa_enabled: false,
     });
 
-  if (profileError) throw profileError;
+  if (profileError) {
+    console.error('Profile creation error:', profileError);
+    throw profileError;
+  }
 
-  const { error: loyaltyError } = await supabase
+  const { data: existingLoyalty } = await supabase
     .from('loyalty_points')
-    .insert({
-      user_id: authData.user.id,
-      total_points: 0,
-    });
+    .select('id')
+    .eq('user_id', authData.user.id)
+    .maybeSingle();
 
-  if (loyaltyError) throw loyaltyError;
+  if (!existingLoyalty) {
+    const { error: loyaltyError } = await supabase
+      .from('loyalty_points')
+      .insert({
+        user_id: authData.user.id,
+        total_points: 0,
+      });
+
+    if (loyaltyError) {
+      console.error('Loyalty points creation error:', loyaltyError);
+    }
+  }
 
   return authData;
 };
