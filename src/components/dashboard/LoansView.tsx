@@ -14,8 +14,8 @@ export const LoansView = () => {
   const [newLoan, setNewLoan] = useState({
     loan_type: 'personal' as 'personal' | 'mortgage',
     amount: 10000,
-    interest_rate: 5.5,
-    term_months: 12,
+    interest_rate: 3,
+    term_months: 2,
     account_id: '',
   });
 
@@ -60,48 +60,24 @@ export const LoansView = () => {
     return (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
   };
 
+  const calculateDynamicInterestRate = (loanType: string, months: number) => {
+    if (loanType === 'mortgage') return 5.5;
+
+    if (months <= 2) return 3;
+    if (months >= 96) return 6.5;
+
+    const minRate = 3;
+    const maxRate = 6.5;
+    const minMonths = 2;
+    const maxMonths = 96;
+
+    return minRate + ((months - minMonths) / (maxMonths - minMonths)) * (maxRate - minRate);
+  };
+
   const requestLoan = async () => {
     if (!profile || !newLoan.account_id) return;
 
     const monthlyPayment = calculateMonthlyPayment(newLoan.amount, newLoan.interest_rate, newLoan.term_months);
-
-    const selectedAccount = accounts.find(acc => acc.id === newLoan.account_id);
-    if (!selectedAccount) return;
-
-    const newBalance = Number(selectedAccount.balance) + newLoan.amount;
-
-    const { error: accountError } = await supabase
-      .from('accounts')
-      .update({ balance: newBalance })
-      .eq('id', newLoan.account_id);
-
-    if (accountError) {
-      alert('Error al actualizar la cuenta');
-      return;
-    }
-
-    const { data: bankAccount } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
-      .maybeSingle();
-
-    if (bankAccount) {
-      await supabase
-        .from('accounts')
-        .update({ balance: Number(bankAccount.balance) - newLoan.amount })
-        .eq('id', bankAccount.id);
-
-      await supabase.from('transactions').insert({
-        account_id: bankAccount.id,
-        transaction_type: 'payment',
-        amount: -newLoan.amount,
-        currency: 'EUR',
-        description: `Préstamo otorgado - ${newLoan.loan_type} - A: ${selectedAccount.account_number}`,
-        recipient_account: selectedAccount.account_number,
-        is_suspicious: false,
-      });
-    }
 
     const { error } = await supabase
       .from('loans')
@@ -113,30 +89,20 @@ export const LoansView = () => {
         term_months: newLoan.term_months,
         monthly_payment: monthlyPayment,
         remaining_balance: newLoan.amount,
-        status: 'active',
+        status: 'pending',
       });
 
     if (!error) {
-      await supabase.from('transactions').insert({
-        account_id: newLoan.account_id,
-        transaction_type: 'deposit',
-        amount: newLoan.amount,
-        currency: selectedAccount.currency,
-        description: `Préstamo ${newLoan.loan_type === 'mortgage' ? 'hipotecario' : 'personal'} recibido`,
-        recipient_account: bankAccount?.account_number,
-        is_suspicious: false,
-      });
-
       setShowRequestModal(false);
       setNewLoan({
         loan_type: 'personal',
         amount: 10000,
-        interest_rate: 5.5,
-        term_months: 12,
+        interest_rate: 3,
+        term_months: 2,
         account_id: '',
       });
       loadLoans();
-      loadAccounts();
+      alert('Solicitud de préstamo enviada. Espera la aprobación del administrador.');
     }
   };
 
@@ -424,7 +390,12 @@ export const LoansView = () => {
                 </label>
                 <select
                   value={newLoan.loan_type}
-                  onChange={(e) => setNewLoan({ ...newLoan, loan_type: e.target.value as any })}
+                  onChange={(e) => {
+                    const type = e.target.value as 'personal' | 'mortgage';
+                    const months = type === 'personal' ? 2 : 12;
+                    const rate = calculateDynamicInterestRate(type, months);
+                    setNewLoan({ ...newLoan, loan_type: type, term_months: months, interest_rate: rate });
+                  }}
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
                 >
                   <option value="personal">Préstamo Personal</option>
@@ -451,25 +422,26 @@ export const LoansView = () => {
                 <input
                   type="number"
                   value={newLoan.term_months}
-                  onChange={(e) => setNewLoan({ ...newLoan, term_months: Number(e.target.value) })}
+                  onChange={(e) => {
+                    const months = Number(e.target.value);
+                    const rate = calculateDynamicInterestRate(newLoan.loan_type, months);
+                    setNewLoan({ ...newLoan, term_months: months, interest_rate: rate });
+                  }}
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-                  min="6"
-                  max="360"
+                  min={newLoan.loan_type === 'personal' ? '2' : '6'}
+                  max={newLoan.loan_type === 'personal' ? '96' : '360'}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Tasa de Interés (%)
+                  Tasa de Interés (%) - Automática
                 </label>
-                <input
-                  type="number"
-                  value={newLoan.interest_rate}
-                  onChange={(e) => setNewLoan({ ...newLoan, interest_rate: Number(e.target.value) })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-                  min="0"
-                  max="20"
-                  step="0.1"
-                />
+                <div className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
+                  {newLoan.interest_rate.toFixed(2)}%
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {newLoan.loan_type === 'personal' ? 'Personal: 3% (2 meses) - 6.5% (96 meses)' : 'Hipoteca: 5.5% fijo'}
+                </p>
               </div>
               <div className="p-4 bg-gray-800 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">Pago Mensual Estimado</div>

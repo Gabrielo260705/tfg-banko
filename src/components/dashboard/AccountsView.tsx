@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Wallet, ArrowLeftRight, Download, FileText } from 'lucide-react';
+import { Plus, Wallet, ArrowLeftRight, Download, FileText, X } from 'lucide-react';
 import { supabase, Account, Transaction } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -240,10 +240,10 @@ export const AccountsView = () => {
                   setTransfer({ ...transfer, from_account_id: account.id });
                   setShowTransferModal(true);
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-gray-700 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <ArrowLeftRight className="h-4 w-4" />
-                Transferir
+                <span>Transferir</span>
               </button>
               <button
                 onClick={async () => {
@@ -251,10 +251,10 @@ export const AccountsView = () => {
                   await loadTransactions(account.id);
                   setShowTransactionsModal(true);
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-gray-700 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <FileText className="h-4 w-4" />
-                Movimientos
+                <span>Movimientos</span>
               </button>
               <button
                 onClick={() => {
@@ -267,10 +267,10 @@ export const AccountsView = () => {
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-gray-700 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <Download className="h-4 w-4" />
-                Extracto
+                <span>Extracto</span>
               </button>
             </div>
           </div>
@@ -344,9 +344,9 @@ export const AccountsView = () => {
                   setShowTransactionsModal(false);
                   setSelectedAccountForTransactions(null);
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white transition-colors"
               >
-                <FileText className="h-6 w-6" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             <div className="mb-4 p-4 bg-gray-800 rounded-lg">
