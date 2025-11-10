@@ -40,12 +40,23 @@ export const RegisterForm = ({ onSuccess, onLogin, onCancel }: RegisterFormProps
         onSuccess();
       }, 2000);
     } catch (err: any) {
-      const errorMessage = err.message || 'Error al crear la cuenta';
-      if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('confirm')) {
-        setError('Por favor, verifica tu email para confirmar tu cuenta antes de iniciar sesión.');
-      } else {
-        setError(errorMessage);
+      let errorMessage = 'Error al crear la cuenta';
+
+      if (err.message?.includes('User already registered')) {
+        errorMessage = 'Este correo ya está registrado.';
+      } else if (err.message?.includes('Email rate limit exceeded')) {
+        errorMessage = 'Demasiados intentos. Por favor intenta más tarde.';
+      } else if (err.message?.includes('Invalid email')) {
+        errorMessage = 'Correo electrónico inválido.';
+      } else if (err.message?.includes('Password should be')) {
+        errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+      } else if (err.message?.toLowerCase().includes('email') && err.message?.toLowerCase().includes('confirm')) {
+        errorMessage = 'Por favor, verifica tu correo para confirmar tu cuenta.';
+      } else if (err.message) {
+        errorMessage = err.message;
       }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

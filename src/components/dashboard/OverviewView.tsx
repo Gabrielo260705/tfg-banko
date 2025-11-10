@@ -14,7 +14,8 @@ export const OverviewView = () => {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
 
   const formatAmount = (amount: number) => {
-    return Number.isInteger(amount) ? amount.toString() : amount.toFixed(2);
+    const num = Number(amount);
+    return num % 1 === 0 ? num.toString() : num.toFixed(2);
   };
 
   useEffect(() => {

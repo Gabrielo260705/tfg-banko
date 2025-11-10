@@ -30,7 +30,21 @@ export const LoginForm = ({ onSuccess, onRegister, onCancel }: LoginFormProps) =
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión');
+      let errorMessage = 'Error al iniciar sesión';
+
+      if (err.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Credenciales incorrectas. Verifica tu correo y contraseña.';
+      } else if (err.message?.includes('Email not confirmed')) {
+        errorMessage = 'Por favor confirma tu correo electrónico.';
+      } else if (err.message?.includes('User not found')) {
+        errorMessage = 'Usuario no encontrado.';
+      } else if (err.message?.includes('Invalid email')) {
+        errorMessage = 'Correo electrónico inválido.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

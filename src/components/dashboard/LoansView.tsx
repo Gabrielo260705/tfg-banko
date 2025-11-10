@@ -16,7 +16,9 @@ export const LoansView = () => {
     amount: 10000,
     interest_rate: 3,
     term_months: 2,
+    term_years: 1,
     account_id: '',
+    currency: 'EUR' as 'EUR' | 'USD' | 'GBP',
   });
 
   useEffect(() => {
@@ -77,6 +79,9 @@ export const LoansView = () => {
   const requestLoan = async () => {
     if (!profile || !newLoan.account_id) return;
 
+    const selectedAccount = accounts.find(acc => acc.id === newLoan.account_id);
+    if (!selectedAccount) return;
+
     const monthlyPayment = calculateMonthlyPayment(newLoan.amount, newLoan.interest_rate, newLoan.term_months);
 
     const { error } = await supabase
@@ -90,6 +95,8 @@ export const LoansView = () => {
         monthly_payment: monthlyPayment,
         remaining_balance: newLoan.amount,
         status: 'pending',
+        currency: selectedAccount.currency,
+        account_id: newLoan.account_id,
       });
 
     if (!error) {
@@ -99,7 +106,9 @@ export const LoansView = () => {
         amount: 10000,
         interest_rate: 3,
         term_months: 2,
+        term_years: 1,
         account_id: '',
+        currency: 'EUR',
       });
       loadLoans();
       alert('Solicitud de préstamo enviada. Espera la aprobación del administrador.');
@@ -393,13 +402,36 @@ export const LoansView = () => {
                   onChange={(e) => {
                     const type = e.target.value as 'personal' | 'mortgage';
                     const months = type === 'personal' ? 2 : 12;
+                    const years = type === 'mortgage' ? 1 : 0;
                     const rate = calculateDynamicInterestRate(type, months);
-                    setNewLoan({ ...newLoan, loan_type: type, term_months: months, interest_rate: rate });
+                    setNewLoan({ ...newLoan, loan_type: type, term_months: months, term_years: years, interest_rate: rate });
                   }}
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
                 >
                   <option value="personal">Préstamo Personal</option>
                   <option value="mortgage">Hipoteca</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cuenta de Destino
+                </label>
+                <select
+                  value={newLoan.account_id}
+                  onChange={(e) => {
+                    const accountId = e.target.value;
+                    const account = accounts.find(acc => acc.id === accountId);
+                    setNewLoan({ ...newLoan, account_id: accountId, currency: account?.currency as any || 'EUR' });
+                  }}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  required
+                >
+                  <option value="">Selecciona una cuenta</option>
+                  {accounts.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.account_number} ({account.currency})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -415,26 +447,48 @@ export const LoansView = () => {
                   step="1000"
                 />
               </div>
+              {newLoan.loan_type === 'personal' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Plazo (meses)
+                  </label>
+                  <input
+                    type="number"
+                    value={newLoan.term_months}
+                    onChange={(e) => {
+                      const months = Number(e.target.value);
+                      const rate = calculateDynamicInterestRate(newLoan.loan_type, months);
+                      setNewLoan({ ...newLoan, term_months: months, interest_rate: rate });
+                    }}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                    min="2"
+                    max="96"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Plazo (años)
+                  </label>
+                  <input
+                    type="number"
+                    value={newLoan.term_years}
+                    onChange={(e) => {
+                      const years = Number(e.target.value);
+                      const months = years * 12;
+                      const rate = calculateDynamicInterestRate(newLoan.loan_type, months);
+                      setNewLoan({ ...newLoan, term_years: years, term_months: months, interest_rate: rate });
+                    }}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                    min="1"
+                    max="30"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Equivalente a {newLoan.term_months} meses</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Plazo (meses)
-                </label>
-                <input
-                  type="number"
-                  value={newLoan.term_months}
-                  onChange={(e) => {
-                    const months = Number(e.target.value);
-                    const rate = calculateDynamicInterestRate(newLoan.loan_type, months);
-                    setNewLoan({ ...newLoan, term_months: months, interest_rate: rate });
-                  }}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-                  min={newLoan.loan_type === 'personal' ? '2' : '6'}
-                  max={newLoan.loan_type === 'personal' ? '96' : '360'}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Tasa de Interés (%) - Automática
+                  Tasa de Interés (%)
                 </label>
                 <div className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
                   {newLoan.interest_rate.toFixed(2)}%

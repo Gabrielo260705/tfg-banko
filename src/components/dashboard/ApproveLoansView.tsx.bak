@@ -29,10 +29,15 @@ export const ApproveLoansView = () => {
 
     const loansWithAccounts = await Promise.all(
       loans.map(async (loan) => {
-        const accountId = loan.account_id;
+        const { data: accounts } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('user_id', loan.user_id)
+          .limit(1);
+
         return {
           ...loan,
-          user_account_id: accountId,
+          user_account_id: accounts?.[0]?.id,
         };
       })
     );
@@ -45,7 +50,7 @@ export const ApproveLoansView = () => {
 
     const loan = pendingLoans.find(l => l.id === loanId);
     if (!loan || !loan.user_account_id) {
-      alert('No se encontró la cuenta del usuario');
+      alert('No se encontr\u00f3 la cuenta del usuario');
       return;
     }
 
@@ -56,28 +61,23 @@ export const ApproveLoansView = () => {
       .maybeSingle();
 
     if (!userAccount) {
-      alert('No se encontró la cuenta del usuario');
+      alert('No se encontr\u00f3 la cuenta del usuario');
       return;
     }
-
-    const bankAccountNumber =
-      userAccount.currency === 'USD' ? 'BANKO-SYSTEM-ACCOUNT-002' :
-      userAccount.currency === 'GBP' ? 'BANKO-SYSTEM-ACCOUNT-003' :
-      'BANKO-SYSTEM-ACCOUNT-001';
 
     const { data: bankAccount } = await supabase
       .from('accounts')
       .select('*')
-      .eq('account_number', bankAccountNumber)
+      .eq('account_number', 'BANKO-SYSTEM-ACCOUNT-001')
       .maybeSingle();
 
     if (!bankAccount) {
-      alert('No se encontró la cuenta del banco en ' + userAccount.currency);
+      alert('No se encontr\u00f3 la cuenta del banco');
       return;
     }
 
     if (Number(bankAccount.balance) < Number(loan.amount)) {
-      alert('El banco no tiene fondos suficientes para aprobar este préstamo');
+      alert('El banco no tiene fondos suficientes para aprobar este pr\u00e9stamo');
       return;
     }
 
@@ -120,7 +120,7 @@ export const ApproveLoansView = () => {
           transaction_type: 'deposit',
           amount: Number(loan.amount),
           currency: userAccount.currency,
-          description: `Préstamo ${loan.loan_type === 'mortgage' ? 'hipotecario' : 'personal'} aprobado`,
+          description: `Pr\u00e9stamo ${loan.loan_type === 'mortgage' ? 'hipotecario' : 'personal'} aprobado`,
           recipient_account: bankAccount.account_number,
           is_suspicious: false,
         },
@@ -129,14 +129,14 @@ export const ApproveLoansView = () => {
           transaction_type: 'payment',
           amount: -Number(loan.amount),
           currency: 'EUR',
-          description: `Préstamo otorgado - ${loan.loan_type} - A: ${userAccount.account_number}`,
+          description: `Pr\u00e9stamo otorgado - ${loan.loan_type} - A: ${userAccount.account_number}`,
           recipient_account: userAccount.account_number,
           is_suspicious: false,
         }
       ]);
 
       loadPendingLoans();
-      alert('Préstamo aprobado y dinero depositado');
+      alert('Pr\u00e9stamo aprobado y dinero depositado');
     }
   };
 
