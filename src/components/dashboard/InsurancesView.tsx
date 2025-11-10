@@ -23,6 +23,14 @@ export const InsurancesView = () => {
   const [myInsurances, setMyInsurances] = useState<Insurance[]>([]);
   const [activeTab, setActiveTab] = useState<'available' | 'contracted'>('available');
 
+  useEffect(() => {
+    console.log('InsurancesView - profile updated:', profile);
+  }, [profile]);
+
+  useEffect(() => {
+    console.log('InsurancesView - selectedType updated:', selectedType);
+  }, [selectedType]);
+
   const insuranceData: Record<string, { name: string, description: string, price: number, coverage: number }> = {
     home: { name: 'Seguro de Hogar', description: 'Protección completa para tu hogar y familia', price: 25, coverage: 100000 },
     life: { name: 'Seguro de Vida', description: 'Protección para tu futuro y el de tu familia', price: 45, coverage: 250000 },
@@ -55,8 +63,10 @@ export const InsurancesView = () => {
   };
 
   const handleContract = (type: string) => {
+    console.log('handleContract called with type:', type);
     setSelectedType(type);
     setShowContractModal(true);
+    console.log('Modal should now be visible');
   };
 
   const handleDetails = (type: string) => {
@@ -367,26 +377,32 @@ export const InsurancesView = () => {
       )}
 
       {showContractModal && selectedType && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Contratar {insuranceData[selectedType].name}</h3>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setShowContractModal(false)}>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4">Contratar {insuranceData[selectedType]?.name || 'Seguro'}</h3>
             <div className="space-y-4">
               <div className="p-4 bg-gray-800 rounded-lg">
                 <div className="text-sm text-gray-400">Prima mensual</div>
-                <div className="text-2xl font-bold text-emerald-500">€{insuranceData[selectedType].price}</div>
+                <div className="text-2xl font-bold text-emerald-500">€{insuranceData[selectedType]?.price || 0}</div>
               </div>
               <p className="text-sm text-gray-400">
                 Al contratar este seguro, aceptas los términos y condiciones. La póliza será efectiva inmediatamente después del pago y tendrá una vigencia de 1 año.
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowContractModal(false)}
+                  onClick={() => {
+                    console.log('Cancel button clicked');
+                    setShowContractModal(false);
+                  }}
                   className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={confirmContract}
+                  onClick={() => {
+                    console.log('Confirm button clicked');
+                    confirmContract();
+                  }}
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                 >
                   Confirmar
