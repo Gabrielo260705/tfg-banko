@@ -169,7 +169,7 @@ export const Dashboard = () => {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-400">
-                  {profile?.full_name}
+                  {profile?.full_name?.replace(/\s*usuario\s*/gi, '').trim()}
                 </span>
                 {profile?.role === 'worker' && (
                   <span className="px-2 py-1 bg-emerald-600 text-white text-xs font-medium rounded">
