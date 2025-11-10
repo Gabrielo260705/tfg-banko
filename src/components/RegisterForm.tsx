@@ -13,8 +13,6 @@ export const RegisterForm = ({ onSuccess, onLogin, onCancel }: RegisterFormProps
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'user' | 'worker'>('user');
-  const [workerCode, setWorkerCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,15 +31,10 @@ export const RegisterForm = ({ onSuccess, onLogin, onCancel }: RegisterFormProps
       return;
     }
 
-    if (role === 'worker' && workerCode !== 'BANKO2025') {
-      setError('Código de trabajador incorrecto');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      await signUp(email, password, fullName, role);
+      await signUp(email, password, fullName, 'user');
       setSuccess(true);
       setTimeout(() => {
         onSuccess();
@@ -153,37 +146,6 @@ export const RegisterForm = ({ onSuccess, onLogin, onCancel }: RegisterFormProps
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Tipo de Cuenta
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'user' | 'worker')}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-              >
-                <option value="user">Usuario</option>
-                <option value="worker">Trabajador del Banco</option>
-              </select>
-            </div>
-
-            {role === 'worker' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Código de Trabajador
-                </label>
-                <input
-                  type="text"
-                  value={workerCode}
-                  onChange={(e) => setWorkerCode(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-                  placeholder="Código proporcionado por el banco"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">Usa: BANKO2025</p>
-              </div>
-            )}
 
             <button
               type="submit"

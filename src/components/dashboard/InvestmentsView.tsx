@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, Plus } from 'lucide-react';
-import { supabase, Investment } from '../../lib/supabase';
+import { supabase, Investment, Account } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const InvestmentsView = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'portfolio' | 'simulator'>('portfolio');
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newInvestment, setNewInvestment] = useState({
     investment_type: 'stocks' as 'stocks' | 'funds',
     name: '',
     amount_invested: 1000,
     interest_rate: 5,
+    account_id: '',
   });
 
   const [simulator, setSimulator] = useState({
@@ -24,6 +26,7 @@ export const InvestmentsView = () => {
 
   useEffect(() => {
     loadInvestments();
+    loadAccounts();
   }, [profile]);
 
   const loadInvestments = async () => {
@@ -38,8 +41,34 @@ export const InvestmentsView = () => {
     setInvestments(data || []);
   };
 
+  const loadAccounts = async () => {
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', profile.id);
+
+    setAccounts(data || []);
+  };
+
   const createInvestment = async () => {
-    if (!profile || !newInvestment.name) return;
+    if (!profile || !newInvestment.name || !newInvestment.account_id) return;
+
+    const selectedAccount = accounts.find(acc => acc.id === newInvestment.account_id);
+    if (!selectedAccount) return;
+
+    const newBalance = Number(selectedAccount.balance) - newInvestment.amount_invested;
+
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', newInvestment.account_id);
+
+    if (accountError) {
+      alert('Error al actualizar la cuenta');
+      return;
+    }
 
     const { error } = await supabase
       .from('investments')
@@ -59,8 +88,10 @@ export const InvestmentsView = () => {
         name: '',
         amount_invested: 1000,
         interest_rate: 5,
+        account_id: '',
       });
       loadInvestments();
+      loadAccounts();
     }
   };
 
@@ -223,6 +254,24 @@ export const InvestmentsView = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cuenta de Origen
+                </label>
+                <select
+                  value={newInvestment.account_id}
+                  onChange={(e) => setNewInvestment({ ...newInvestment, account_id: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  required
+                >
+                  <option value="">Selecciona una cuenta</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.account_number} - €{Number(acc.balance).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Tipo de Inversión
                 </label>
                 <select
@@ -283,7 +332,7 @@ export const InvestmentsView = () => {
                 </button>
                 <button
                   onClick={createInvestment}
-                  disabled={!newInvestment.name}
+                  disabled={!newInvestment.name || !newInvestment.account_id}
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Invertir

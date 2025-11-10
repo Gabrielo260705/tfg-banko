@@ -68,8 +68,6 @@ export const Dashboard = () => {
   const workerMenuItems = [
     { id: 'overview', label: 'Resumen', icon: Home },
     { id: 'admin', label: 'Panel de Admin', icon: LayoutDashboard },
-    { id: 'users', label: 'Usuarios', icon: Users },
-    { id: 'approve-loans', label: 'Aprobar Préstamos', icon: AlertTriangle },
     { id: 'accounts', label: 'Cuentas', icon: Wallet },
     { id: 'cards', label: 'Tarjetas', icon: CreditCard },
     { id: 'loans', label: 'Préstamos', icon: DollarSign },

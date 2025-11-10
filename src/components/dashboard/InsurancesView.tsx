@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Shield, X, CheckCircle, XCircle, Calendar, DollarSign } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, Account } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Insurance {
@@ -21,6 +21,8 @@ export const InsurancesView = () => {
   const [selectedType, setSelectedType] = useState<string>('');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [myInsurances, setMyInsurances] = useState<Insurance[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'available' | 'contracted'>('available');
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export const InsurancesView = () => {
 
   useEffect(() => {
     loadMyInsurances();
+    loadAccounts();
   }, [profile]);
 
   const loadMyInsurances = async () => {
@@ -62,6 +65,17 @@ export const InsurancesView = () => {
     }
   };
 
+  const loadAccounts = async () => {
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', profile.id);
+
+    setAccounts(data || []);
+  };
+
   const handleContract = (type: string) => {
     console.log('handleContract called with type:', type);
     setSelectedType(type);
@@ -78,15 +92,34 @@ export const InsurancesView = () => {
     console.log('confirmContract called');
     console.log('profile:', profile);
     console.log('selectedType:', selectedType);
+    console.log('selectedAccountId:', selectedAccountId);
 
-    if (!profile || !selectedType) {
-      console.log('Missing profile or selectedType, returning early');
-      alert('Error: Faltan datos necesarios para contratar el seguro');
+    if (!profile || !selectedType || !selectedAccountId) {
+      console.log('Missing profile, selectedType or selectedAccountId, returning early');
+      alert('Error: Debes seleccionar una cuenta');
       return;
     }
 
     const insurance = insuranceData[selectedType];
     console.log('insurance data:', insurance);
+
+    const selectedAccount = accounts.find(acc => acc.id === selectedAccountId);
+    if (!selectedAccount) {
+      alert('Cuenta no encontrada');
+      return;
+    }
+
+    const newBalance = Number(selectedAccount.balance) - insurance.price;
+
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', selectedAccountId);
+
+    if (accountError) {
+      alert('Error al actualizar la cuenta');
+      return;
+    }
 
     const policyNumber = `POL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     const startDate = new Date();
@@ -127,7 +160,9 @@ export const InsurancesView = () => {
       } else {
         alert('¡Seguro contratado con éxito!\nPóliza: ' + policyNumber);
         setShowContractModal(false);
+        setSelectedAccountId('');
         loadMyInsurances();
+        loadAccounts();
         setActiveTab('contracted');
       }
     } catch (err) {
@@ -381,6 +416,24 @@ export const InsurancesView = () => {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold mb-4">Contratar {insuranceData[selectedType]?.name || 'Seguro'}</h3>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cuenta para el Pago
+                </label>
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  required
+                >
+                  <option value="">Selecciona una cuenta</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.account_number} - €{Number(acc.balance).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="p-4 bg-gray-800 rounded-lg">
                 <div className="text-sm text-gray-400">Prima mensual</div>
                 <div className="text-2xl font-bold text-emerald-500">€{insuranceData[selectedType]?.price || 0}</div>
