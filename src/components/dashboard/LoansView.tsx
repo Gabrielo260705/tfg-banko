@@ -1,21 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Plus, DollarSign, AlertCircle } from 'lucide-react';
-import { supabase, Loan } from '../../lib/supabase';
+import { supabase, Loan, Account } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const LoansView = () => {
   const { profile } = useAuth();
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [newLoan, setNewLoan] = useState({
     loan_type: 'personal' as 'personal' | 'mortgage',
     amount: 10000,
     interest_rate: 5.5,
     term_months: 12,
+    account_id: '',
   });
 
   useEffect(() => {
     loadLoans();
+    loadAccounts();
   }, [profile]);
 
   const loadLoans = async () => {
@@ -38,15 +44,41 @@ export const LoansView = () => {
     }
   };
 
+  const loadAccounts = async () => {
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', profile.id);
+
+    setAccounts(data || []);
+  };
+
   const calculateMonthlyPayment = (principal: number, annualRate: number, months: number) => {
     const monthlyRate = annualRate / 100 / 12;
     return (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
   };
 
   const requestLoan = async () => {
-    if (!profile) return;
+    if (!profile || !newLoan.account_id) return;
 
     const monthlyPayment = calculateMonthlyPayment(newLoan.amount, newLoan.interest_rate, newLoan.term_months);
+
+    const selectedAccount = accounts.find(acc => acc.id === newLoan.account_id);
+    if (!selectedAccount) return;
+
+    const newBalance = Number(selectedAccount.balance) + newLoan.amount;
+
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', newLoan.account_id);
+
+    if (accountError) {
+      alert('Error al actualizar la cuenta');
+      return;
+    }
 
     const { error } = await supabase
       .from('loans')
@@ -58,13 +90,69 @@ export const LoansView = () => {
         term_months: newLoan.term_months,
         monthly_payment: monthlyPayment,
         remaining_balance: newLoan.amount,
-        status: 'pending',
+        status: 'active',
       });
 
     if (!error) {
       setShowRequestModal(false);
+      setNewLoan({
+        loan_type: 'personal',
+        amount: 10000,
+        interest_rate: 5.5,
+        term_months: 12,
+        account_id: '',
+      });
       loadLoans();
+      loadAccounts();
     }
+  };
+
+  const payInstallment = async () => {
+    if (!selectedLoan || !selectedAccountId) return;
+
+    const account = accounts.find(acc => acc.id === selectedAccountId);
+    if (!account) return;
+
+    if (Number(account.balance) < Number(selectedLoan.monthly_payment)) {
+      alert('Saldo insuficiente en la cuenta seleccionada');
+      return;
+    }
+
+    const newBalance = Number(account.balance) - Number(selectedLoan.monthly_payment);
+    const newRemainingBalance = Number(selectedLoan.remaining_balance) - Number(selectedLoan.monthly_payment);
+    const newTermMonths = selectedLoan.term_months - 1;
+
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', selectedAccountId);
+
+    if (accountError) {
+      alert('Error al actualizar la cuenta');
+      return;
+    }
+
+    const newStatus = newRemainingBalance <= 0 ? 'paid' : 'active';
+
+    const { error: loanError } = await supabase
+      .from('loans')
+      .update({
+        remaining_balance: Math.max(0, newRemainingBalance),
+        term_months: Math.max(0, newTermMonths),
+        status: newStatus,
+      })
+      .eq('id', selectedLoan.id);
+
+    if (loanError) {
+      alert('Error al actualizar el préstamo');
+      return;
+    }
+
+    setShowPayModal(false);
+    setSelectedLoan(null);
+    setSelectedAccountId('');
+    loadLoans();
+    loadAccounts();
   };
 
   const getStatusColor = (status: string) => {
@@ -149,7 +237,7 @@ export const LoansView = () => {
                   <span className="text-sm text-gray-400">Saldo Pendiente</span>
                   <span className="text-lg font-semibold">€{Number(loan.remaining_balance).toLocaleString()}</span>
                 </div>
-                <div className="w-full bg-gray-800 rounded-full h-2">
+                <div className="w-full bg-gray-800 rounded-full h-2 mb-4">
                   <div
                     className="bg-emerald-600 h-2 rounded-full"
                     style={{
@@ -157,6 +245,15 @@ export const LoansView = () => {
                     }}
                   ></div>
                 </div>
+                <button
+                  onClick={() => {
+                    setSelectedLoan(loan);
+                    setShowPayModal(true);
+                  }}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Pagar 1 Plazo (€{Number(loan.monthly_payment).toFixed(2)})
+                </button>
               </div>
             )}
 
@@ -176,11 +273,85 @@ export const LoansView = () => {
         )}
       </div>
 
+      {showPayModal && selectedLoan && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Pagar Plazo de Préstamo</h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-800 rounded-lg">
+                <div className="text-sm text-gray-400 mb-1">Monto del Plazo</div>
+                <div className="text-2xl font-bold text-emerald-500">
+                  €{Number(selectedLoan.monthly_payment).toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cuenta de Pago
+                </label>
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  required
+                >
+                  <option value="">Selecciona una cuenta</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.account_number} - €{Number(acc.balance).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="p-3 bg-blue-900/20 border border-blue-800 rounded-lg text-blue-400 text-sm">
+                <p>Esto reducirá tu plazo en 1 mes y tu saldo pendiente en €{Number(selectedLoan.monthly_payment).toFixed(2)}</p>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPayModal(false);
+                    setSelectedLoan(null);
+                    setSelectedAccountId('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={payInstallment}
+                  disabled={!selectedAccountId}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Pagar Plazo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4">Solicitar Préstamo</h3>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cuenta de Destino
+                </label>
+                <select
+                  value={newLoan.account_id}
+                  onChange={(e) => setNewLoan({ ...newLoan, account_id: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  required
+                >
+                  <option value="">Selecciona una cuenta</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.account_number} - €{Number(acc.balance).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Tipo de Préstamo
@@ -249,7 +420,8 @@ export const LoansView = () => {
                 </button>
                 <button
                   onClick={requestLoan}
-                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  disabled={!newLoan.account_id}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Solicitar
                 </button>

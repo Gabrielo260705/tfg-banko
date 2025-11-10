@@ -9,6 +9,9 @@ export const InvestmentsView = () => {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showSellModal, setShowSellModal] = useState(false);
+  const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
+  const [sellAccountId, setSellAccountId] = useState('');
   const [newInvestment, setNewInvestment] = useState({
     investment_type: 'stocks' as 'stocks' | 'funds',
     name: '',
@@ -58,6 +61,11 @@ export const InvestmentsView = () => {
     const selectedAccount = accounts.find(acc => acc.id === newInvestment.account_id);
     if (!selectedAccount) return;
 
+    if (Number(selectedAccount.balance) < newInvestment.amount_invested) {
+      alert('Saldo insuficiente en la cuenta seleccionada');
+      return;
+    }
+
     const newBalance = Number(selectedAccount.balance) - newInvestment.amount_invested;
 
     const { error: accountError } = await supabase
@@ -93,6 +101,41 @@ export const InvestmentsView = () => {
       loadInvestments();
       loadAccounts();
     }
+  };
+
+  const sellInvestment = async () => {
+    if (!selectedInvestment || !sellAccountId) return;
+
+    const account = accounts.find(acc => acc.id === sellAccountId);
+    if (!account) return;
+
+    const newBalance = Number(account.balance) + Number(selectedInvestment.current_value);
+
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', sellAccountId);
+
+    if (accountError) {
+      alert('Error al actualizar la cuenta');
+      return;
+    }
+
+    const { error: investmentError } = await supabase
+      .from('investments')
+      .delete()
+      .eq('id', selectedInvestment.id);
+
+    if (investmentError) {
+      alert('Error al vender la inversión');
+      return;
+    }
+
+    setShowSellModal(false);
+    setSelectedInvestment(null);
+    setSellAccountId('');
+    loadInvestments();
+    loadAccounts();
   };
 
   const calculateCompoundInterest = () => {
@@ -180,6 +223,15 @@ export const InvestmentsView = () => {
                     </div>
                   </div>
                 </div>
+                <button
+                  onClick={() => {
+                    setSelectedInvestment(inv);
+                    setShowSellModal(true);
+                  }}
+                  className="w-full mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  Vender Acciones (€{Number(inv.current_value).toFixed(2)})
+                </button>
               </div>
             ))
           )}
@@ -241,6 +293,64 @@ export const InvestmentsView = () => {
               </div>
               <div className="text-sm text-emerald-500 mt-1">
                 +{(((simulator.result - simulator.principal) / simulator.principal) * 100).toFixed(2)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSellModal && selectedInvestment && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Vender Inversión</h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-800 rounded-lg">
+                <div className="text-sm text-gray-400 mb-1">Inversión</div>
+                <div className="text-lg font-semibold">{selectedInvestment.name}</div>
+                <div className="text-sm text-gray-400 mt-2">Valor de Venta</div>
+                <div className="text-2xl font-bold text-emerald-500">
+                  €{Number(selectedInvestment.current_value).toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cuenta de Destino
+                </label>
+                <select
+                  value={sellAccountId}
+                  onChange={(e) => setSellAccountId(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
+                  required
+                >
+                  <option value="">Selecciona una cuenta</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.account_number} - €{Number(acc.balance).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="p-3 bg-orange-900/20 border border-orange-800 rounded-lg text-orange-400 text-sm">
+                <p>El dinero se depositará en la cuenta seleccionada. Esta acción no se puede deshacer.</p>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowSellModal(false);
+                    setSelectedInvestment(null);
+                    setSellAccountId('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={sellInvestment}
+                  disabled={!sellAccountId}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Vender
+                </button>
               </div>
             </div>
           </div>
