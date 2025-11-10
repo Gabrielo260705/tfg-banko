@@ -13,6 +13,10 @@ export const OverviewView = () => {
   });
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
 
+  const formatAmount = (amount: number) => {
+    return Number.isInteger(amount) ? amount.toString() : amount.toFixed(2);
+  };
+
   useEffect(() => {
     loadStats();
     loadRecentTransactions();
@@ -150,7 +154,7 @@ export const OverviewView = () => {
                 <div className={`font-semibold ${
                   tx.amount > 0 ? 'text-emerald-500' : 'text-red-500'
                 }`}>
-                  {tx.amount > 0 ? '+' : ''}{tx.amount} {tx.currency}
+                  {tx.amount > 0 ? '+' : ''}{formatAmount(Number(tx.amount))} {tx.currency}
                 </div>
               </div>
             ))

@@ -88,6 +88,10 @@ export const AccountsView = () => {
     }, 0);
   };
 
+  const formatAmount = (amount: number) => {
+    return Number.isInteger(amount) ? amount.toString() : amount.toFixed(2);
+  };
+
   const loadTransactions = async (accountId: string) => {
     const { data } = await supabase
       .from('transactions')
@@ -385,7 +389,7 @@ export const AccountsView = () => {
                         <div className={`text-lg font-bold ${
                           Number(transaction.amount) >= 0 ? 'text-emerald-500' : 'text-red-500'
                         }`}>
-                          {Number(transaction.amount) >= 0 ? '+' : ''}€{Number(transaction.amount).toFixed(2)}
+                          {Number(transaction.amount) >= 0 ? '+' : ''}€{formatAmount(Math.abs(Number(transaction.amount)))}
                         </div>
                         <div className="text-xs text-gray-400">{transaction.currency}</div>
                       </div>
