@@ -9,7 +9,7 @@ export const InvestmentsView = () => {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newInvestment, setNewInvestment] = useState({
-    investment_type: 'stocks' as 'stocks' | 'funds' | 'savings_account',
+    investment_type: 'stocks' as 'stocks' | 'funds',
     name: '',
     amount_invested: 1000,
     interest_rate: 5,
@@ -232,7 +232,6 @@ export const InvestmentsView = () => {
                 >
                   <option value="stocks">Acciones</option>
                   <option value="funds">Fondos</option>
-                  <option value="savings_account">Cuenta de Ahorro</option>
                 </select>
               </div>
               <div>

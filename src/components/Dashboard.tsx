@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Home, CreditCard, DollarSign, TrendingUp, Shield, FileText,
-  Settings, LogOut, Menu, X, Building2, Wallet, Users, AlertTriangle
+  Settings, LogOut, Menu, X, Building2, Wallet, Users, AlertTriangle, LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AccountsView } from './dashboard/AccountsView';
@@ -16,10 +16,11 @@ import { SettingsView } from './dashboard/SettingsView';
 import { OverviewView } from './dashboard/OverviewView';
 import { UsersManagementView } from './dashboard/UsersManagementView';
 import { ApproveLoansView } from './dashboard/ApproveLoansView';
+import { AdminPanelView } from './dashboard/AdminPanelView';
 import { supabase } from '../lib/supabase';
 
 type View = 'overview' | 'accounts' | 'cards' | 'loans' | 'investments' | 'insurances' |
-            'transactions' | 'crypto' | 'atm' | 'settings' | 'users' | 'approve-loans';
+            'transactions' | 'crypto' | 'atm' | 'settings' | 'users' | 'approve-loans' | 'admin';
 
 export const Dashboard = () => {
   const { profile, signOut } = useAuth();
@@ -66,6 +67,7 @@ export const Dashboard = () => {
 
   const workerMenuItems = [
     { id: 'overview', label: 'Resumen', icon: Home },
+    { id: 'admin', label: 'Panel de Admin', icon: LayoutDashboard },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'approve-loans', label: 'Aprobar Préstamos', icon: AlertTriangle },
     { id: 'accounts', label: 'Cuentas', icon: Wallet },
@@ -84,6 +86,8 @@ export const Dashboard = () => {
     switch (currentView) {
       case 'overview':
         return <OverviewView />;
+      case 'admin':
+        return profile?.role === 'worker' ? <AdminPanelView /> : null;
       case 'accounts':
         return <AccountsView />;
       case 'cards':

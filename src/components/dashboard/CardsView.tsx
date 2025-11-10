@@ -61,7 +61,7 @@ export const CardsView = () => {
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 3);
 
-    const pointsMultiplier = newCard.card_type === 'credit' ? 2 : newCard.card_type === 'debit' ? 1 : 0.5;
+    const pointsMultiplier = newCard.card_type === 'credit' ? 2 : 1;
 
     const { error } = await supabase
       .from('cards')
@@ -206,7 +206,7 @@ export const CardsView = () => {
                 >
                   <option value="debit">Débito (x1 puntos)</option>
                   <option value="credit">Crédito (x2 puntos)</option>
-                  <option value="disposable">Desechable (x0.5 puntos)</option>
+                  <option value="disposable">Desechable (x1 puntos)</option>
                 </select>
               </div>
               {newCard.card_type === 'credit' && (

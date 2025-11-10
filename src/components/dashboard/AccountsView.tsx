@@ -128,7 +128,7 @@ export const AccountsView = () => {
               {Number(account.balance).toFixed(2)}
             </div>
             <div className="text-sm text-gray-400 mb-4">
-              {account.account_type === 'checking' ? 'Cuenta Corriente' : 'Cuenta de Ahorro'}
+              {account.account_type === 'checking' ? 'Cuenta Corriente' : 'Cuenta de Ahorro (2% anual)'}
             </div>
             <div className="text-xs text-gray-500 font-mono">
               {account.account_number}
@@ -141,7 +141,19 @@ export const AccountsView = () => {
                 <ArrowLeftRight className="h-4 w-4" />
                 Transferir
               </button>
-              <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors">
+              <button
+                onClick={() => {
+                  const statement = `EXTRACTO DE CUENTA\n\nNúmero de cuenta: ${account.account_number}\nTipo: ${account.account_type === 'checking' ? 'Cuenta Corriente' : 'Cuenta de Ahorro'}\nDivisa: ${account.currency}\nBalance actual: ${account.currency === 'EUR' ? '€' : account.currency === 'GBP' ? '£' : '$'}${Number(account.balance).toFixed(2)}\n\nFecha: ${new Date().toLocaleDateString('es-ES')}`;
+                  const blob = new Blob([statement], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `extracto_${account.account_number}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+              >
                 <Download className="h-4 w-4" />
                 Extracto
               </button>
