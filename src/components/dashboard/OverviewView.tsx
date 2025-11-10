@@ -15,7 +15,7 @@ export const OverviewView = () => {
 
   const formatAmount = (amount: number) => {
     const num = Number(amount);
-    return num % 1 === 0 ? num.toString() : num.toFixed(2);
+    return num.toFixed(2);
   };
 
   useEffect(() => {
