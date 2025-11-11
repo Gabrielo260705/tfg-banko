@@ -3,9 +3,25 @@ import { TrendingUp, Plus } from 'lucide-react';
 import { supabase, Investment, Account } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
+const investmentFunds = [
+  { name: 'Vanguard Total Stock Market', type: 'funds', rate: 7.5, risk: 'Medio', description: 'Fondo indexado diversificado' },
+  { name: 'BlackRock Global Allocation', type: 'funds', rate: 6.2, risk: 'Bajo', description: 'Equilibrio global de activos' },
+  { name: 'Fidelity International', type: 'funds', rate: 8.1, risk: 'Medio-Alto', description: 'Mercados internacionales' },
+  { name: 'PIMCO Income Fund', type: 'funds', rate: 5.5, risk: 'Bajo', description: 'Enfoque en renta fija' },
+  { name: 'T. Rowe Price Equity', type: 'funds', rate: 9.3, risk: 'Alto', description: 'Crecimiento agresivo' },
+];
+
+const stockOptions = [
+  { name: 'Apple Inc.', ticker: 'AAPL', type: 'stocks', rate: 12.5, sector: 'Tecnología' },
+  { name: 'Microsoft Corp.', ticker: 'MSFT', type: 'stocks', rate: 11.8, sector: 'Tecnología' },
+  { name: 'Amazon.com Inc.', ticker: 'AMZN', type: 'stocks', rate: 10.2, sector: 'E-commerce' },
+  { name: 'Tesla Inc.', ticker: 'TSLA', type: 'stocks', rate: 15.7, sector: 'Automotriz' },
+  { name: 'NVIDIA Corp.', ticker: 'NVDA', type: 'stocks', rate: 18.3, sector: 'Tecnología' },
+];
+
 export const InvestmentsView = () => {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'portfolio' | 'simulator'>('portfolio');
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'simulator' | 'market'>('portfolio');
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -256,12 +272,20 @@ export const InvestmentsView = () => {
           Mi Cartera
         </button>
         <button
+          onClick={() => setActiveTab('market')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            activeTab === 'market' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400'
+          }`}
+        >
+          Mercado
+        </button>
+        <button
           onClick={() => setActiveTab('simulator')}
           className={`px-4 py-2 rounded-lg transition-colors ${
             activeTab === 'simulator' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400'
           }`}
         >
-          Simulador de Inversión
+          Simulador
         </button>
       </div>
 
@@ -311,6 +335,84 @@ export const InvestmentsView = () => {
               </div>
             ))
           )}
+        </div>
+      ) : activeTab === 'market' ? (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Fondos de Inversión</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {investmentFunds.map((fund, index) => (
+                <div key={index} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-600 transition-all">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-semibold">{fund.name}</h4>
+                      <p className="text-sm text-gray-400 mt-1">{fund.description}</p>
+                    </div>
+                    <TrendingUp className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <div className="text-xs text-gray-500">Rentabilidad Anual</div>
+                      <div className="text-lg font-bold text-emerald-500">{fund.rate}%</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Riesgo</div>
+                      <div className="text-sm font-semibold">{fund.risk}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setNewInvestment({
+                        ...newInvestment,
+                        investment_type: 'funds',
+                        name: fund.name,
+                        interest_rate: fund.rate
+                      });
+                      setShowCreateModal(true);
+                    }}
+                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                  >
+                    Invertir
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Acciones</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {stockOptions.map((stock, index) => (
+                <div key={index} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-600 transition-all">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-semibold">{stock.name}</h4>
+                      <p className="text-sm text-gray-400 mt-1">{stock.ticker} • {stock.sector}</p>
+                    </div>
+                    <TrendingUp className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                  </div>
+                  <div className="mb-3">
+                    <div className="text-xs text-gray-500">Rentabilidad Estimada</div>
+                    <div className="text-lg font-bold text-emerald-500">{stock.rate}%</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setNewInvestment({
+                        ...newInvestment,
+                        investment_type: 'stocks',
+                        name: stock.name,
+                        interest_rate: stock.rate
+                      });
+                      setShowCreateModal(true);
+                    }}
+                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                  >
+                    Comprar Acciones
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
