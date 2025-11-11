@@ -85,3 +85,14 @@ export interface Investment {
   interest_rate?: number;
   purchase_date: string;
 }
+
+export interface CryptoWallet {
+  id: string;
+  user_id: string;
+  symbol: string;
+  name: string;
+  amount: number;
+  average_buy_price: number;
+  created_at: string;
+  updated_at: string;
+}
