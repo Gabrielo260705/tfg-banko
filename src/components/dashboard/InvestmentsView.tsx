@@ -21,13 +21,14 @@ const stockOptions = [
 
 export const InvestmentsView = () => {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'portfolio' | 'simulator' | 'market'>('portfolio');
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'simulator'>('portfolio');
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSellModal, setShowSellModal] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [sellAccountId, setSellAccountId] = useState('');
+  const [selectedOption, setSelectedOption] = useState<any>(null);
   const [newInvestment, setNewInvestment] = useState({
     investment_type: 'stocks' as 'stocks' | 'funds',
     name: '',
@@ -272,20 +273,12 @@ export const InvestmentsView = () => {
           Mi Cartera
         </button>
         <button
-          onClick={() => setActiveTab('market')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            activeTab === 'market' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400'
-          }`}
-        >
-          Mercado
-        </button>
-        <button
           onClick={() => setActiveTab('simulator')}
           className={`px-4 py-2 rounded-lg transition-colors ${
             activeTab === 'simulator' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400'
           }`}
         >
-          Simulador
+          Simulador de Inversión
         </button>
       </div>
 
@@ -335,84 +328,6 @@ export const InvestmentsView = () => {
               </div>
             ))
           )}
-        </div>
-      ) : activeTab === 'market' ? (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Fondos de Inversión</h3>
-            <div className="grid md:grid-cols-2 gap-4">
-              {investmentFunds.map((fund, index) => (
-                <div key={index} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-600 transition-all">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-semibold">{fund.name}</h4>
-                      <p className="text-sm text-gray-400 mt-1">{fund.description}</p>
-                    </div>
-                    <TrendingUp className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                      <div className="text-xs text-gray-500">Rentabilidad Anual</div>
-                      <div className="text-lg font-bold text-emerald-500">{fund.rate}%</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Riesgo</div>
-                      <div className="text-sm font-semibold">{fund.risk}</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setNewInvestment({
-                        ...newInvestment,
-                        investment_type: 'funds',
-                        name: fund.name,
-                        interest_rate: fund.rate
-                      });
-                      setShowCreateModal(true);
-                    }}
-                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
-                  >
-                    Invertir
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Acciones</h3>
-            <div className="grid md:grid-cols-2 gap-4">
-              {stockOptions.map((stock, index) => (
-                <div key={index} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-600 transition-all">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-semibold">{stock.name}</h4>
-                      <p className="text-sm text-gray-400 mt-1">{stock.ticker} • {stock.sector}</p>
-                    </div>
-                    <TrendingUp className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                  </div>
-                  <div className="mb-3">
-                    <div className="text-xs text-gray-500">Rentabilidad Estimada</div>
-                    <div className="text-lg font-bold text-emerald-500">{stock.rate}%</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setNewInvestment({
-                        ...newInvestment,
-                        investment_type: 'stocks',
-                        name: stock.name,
-                        interest_rate: stock.rate
-                      });
-                      setShowCreateModal(true);
-                    }}
-                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
-                  >
-                    Comprar Acciones
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -564,7 +479,16 @@ export const InvestmentsView = () => {
                 </label>
                 <select
                   value={newInvestment.investment_type}
-                  onChange={(e) => setNewInvestment({ ...newInvestment, investment_type: e.target.value as any })}
+                  onChange={(e) => {
+                    const type = e.target.value as 'stocks' | 'funds';
+                    setNewInvestment({
+                      ...newInvestment,
+                      investment_type: type,
+                      name: '',
+                      interest_rate: 0
+                    });
+                    setSelectedOption(null);
+                  }}
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
                 >
                   <option value="stocks">Acciones</option>
@@ -573,17 +497,76 @@ export const InvestmentsView = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Nombre
+                  Seleccionar {newInvestment.investment_type === 'stocks' ? 'Acción' : 'Fondo'}
                 </label>
-                <input
-                  type="text"
-                  value={newInvestment.name}
-                  onChange={(e) => setNewInvestment({ ...newInvestment, name: e.target.value })}
+                <select
+                  value={selectedOption ? JSON.stringify(selectedOption) : ''}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const option = JSON.parse(e.target.value);
+                      setSelectedOption(option);
+                      setNewInvestment({
+                        ...newInvestment,
+                        name: option.name,
+                        interest_rate: option.rate
+                      });
+                    }
+                  }}
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-                  placeholder="Ej: Apple Inc, Fondo Indexado S&P500"
                   required
-                />
+                >
+                  <option value="">Selecciona una opción</option>
+                  {newInvestment.investment_type === 'stocks' ? (
+                    stockOptions.map((stock, idx) => (
+                      <option key={idx} value={JSON.stringify(stock)}>
+                        {stock.name} ({stock.ticker}) - {stock.rate}% anual
+                      </option>
+                    ))
+                  ) : (
+                    investmentFunds.map((fund, idx) => (
+                      <option key={idx} value={JSON.stringify(fund)}>
+                        {fund.name} - {fund.rate}% anual
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
+              {selectedOption && (
+                <div className="p-4 bg-gray-800 rounded-lg space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-400">Inversión:</span>
+                    <span className="font-semibold">{selectedOption.name}</span>
+                  </div>
+                  {selectedOption.ticker && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-400">Ticker:</span>
+                      <span className="font-semibold">{selectedOption.ticker}</span>
+                    </div>
+                  )}
+                  {selectedOption.sector && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-400">Sector:</span>
+                      <span className="font-semibold">{selectedOption.sector}</span>
+                    </div>
+                  )}
+                  {selectedOption.risk && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-400">Riesgo:</span>
+                      <span className="font-semibold">{selectedOption.risk}</span>
+                    </div>
+                  )}
+                  {selectedOption.description && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-400">Descripción:</span>
+                      <span className="font-semibold">{selectedOption.description}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-gray-700 pt-2 mt-2">
+                    <span className="text-sm text-gray-400">Rentabilidad Anual:</span>
+                    <span className="font-bold text-emerald-500">{selectedOption.rate}%</span>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Cantidad a Invertir (€)
@@ -597,30 +580,26 @@ export const InvestmentsView = () => {
                   step="100"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Tasa de Interés Esperada (%)
-                </label>
-                <input
-                  type="number"
-                  value={newInvestment.interest_rate}
-                  onChange={(e) => setNewInvestment({ ...newInvestment, interest_rate: Number(e.target.value) })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-600"
-                  min="0"
-                  max="50"
-                  step="0.1"
-                />
-              </div>
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setSelectedOption(null);
+                    setNewInvestment({
+                      investment_type: 'stocks',
+                      name: '',
+                      amount_invested: 1000,
+                      interest_rate: 5,
+                      account_id: '',
+                    });
+                  }}
                   className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={createInvestment}
-                  disabled={!newInvestment.name || !newInvestment.account_id}
+                  disabled={!selectedOption || !newInvestment.account_id}
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Invertir
