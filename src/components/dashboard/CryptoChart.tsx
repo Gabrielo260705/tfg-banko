@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 
 interface CryptoChartProps {
   symbol: string;
@@ -7,18 +7,8 @@ interface CryptoChartProps {
   onClose: () => void;
 }
 
-interface KlineData {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
-
 export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -40,16 +30,13 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
       },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries('Candlestick', {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderVisible: false,
       wickUpColor: '#10b981',
       wickDownColor: '#ef4444',
     });
-
-    chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
 
     const fetchChartData = async () => {
       try {
@@ -79,8 +66,8 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
     fetchChartData();
 
     const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
+      if (chartContainerRef.current) {
+        chart.applyOptions({
           width: chartContainerRef.current.clientWidth,
         });
       }
