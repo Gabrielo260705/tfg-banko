@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 
 interface CryptoChartProps {
@@ -9,8 +9,6 @@ interface CryptoChartProps {
 
 export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -42,9 +40,6 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
 
     const fetchChartData = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
         const binanceSymbol = `${symbol}USDT`;
         const endTime = Date.now();
         const startTime = endTime - 7 * 24 * 60 * 60 * 1000;
@@ -52,17 +47,7 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
         const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime}&endTime=${endTime}&limit=168`;
 
         const response = await fetch(url);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.msg || 'Error al obtener datos del gráfico');
-        }
-
         const data = await response.json();
-
-        if (!data || data.length === 0) {
-          throw new Error('No hay datos disponibles para este símbolo');
-        }
 
         const formattedData = data.map((d: any) => ({
           time: d[0] / 1000,
@@ -74,11 +59,8 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
 
         candlestickSeries.setData(formattedData);
         chart.timeScale().fitContent();
-        setLoading(false);
       } catch (error) {
         console.error('Error fetching chart data:', error);
-        setError(error instanceof Error ? error.message : 'Error desconocido');
-        setLoading(false);
       }
     };
 
@@ -117,26 +99,7 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
             </svg>
           </button>
         </div>
-
-        {loading && (
-          <div className="flex items-center justify-center h-[400px]">
-            <div className="text-gray-400">Cargando datos del gráfico...</div>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-center justify-center h-[400px]">
-            <div className="text-center">
-              <p className="text-red-400 mb-2">Error al cargar el gráfico</p>
-              <p className="text-sm text-gray-500">{error}</p>
-              <p className="text-xs text-gray-600 mt-2">
-                Este símbolo puede no estar disponible en Binance
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div ref={chartContainerRef} className={`w-full ${(loading || error) ? 'hidden' : ''}`} />
+        <div ref={chartContainerRef} className="w-full" />
       </div>
     </div>
   );

@@ -23,14 +23,14 @@ interface CryptoData {
 const CRYPTO_MAPPING: Record<string, string> = {
   'BTC': 'BTCUSDT',
   'ETH': 'ETHUSDT',
-  'SOL': 'SOLUSDT',
+  'XMR': 'XMRUSDT',
   'XRP': 'XRPUSDT',
 };
 
 const CRYPTO_NAMES: Record<string, string> = {
   'BTC': 'Bitcoin',
   'ETH': 'Ethereum',
-  'SOL': 'Solana',
+  'XMR': 'Monero',
   'XRP': 'Ripple',
 };
 
