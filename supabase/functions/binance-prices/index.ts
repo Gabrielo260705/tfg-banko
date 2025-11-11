@@ -6,13 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-interface BinanceTickerResponse {
-  symbol: string;
-  priceChange: string;
-  priceChangePercent: string;
-  lastPrice: string;
-}
-
 interface CryptoData {
   symbol: string;
   name: string;
@@ -20,19 +13,12 @@ interface CryptoData {
   change: number;
 }
 
-const CRYPTO_MAPPING: Record<string, string> = {
-  'BTC': 'BTCUSDT',
-  'ETH': 'ETHUSDT',
-  'XMR': 'XMRUSDT',
-  'XRP': 'XRPUSDT',
-};
-
-const CRYPTO_NAMES: Record<string, string> = {
-  'BTC': 'Bitcoin',
-  'ETH': 'Ethereum',
-  'XMR': 'Monero',
-  'XRP': 'Ripple',
-};
+const CRYPTOS = [
+  { symbol: 'BTC', name: 'Bitcoin', tvSymbol: 'BTCUSD' },
+  { symbol: 'ETH', name: 'Ethereum', tvSymbol: 'ETHUSD' },
+  { symbol: 'SOL', name: 'Solana', tvSymbol: 'SOLUSD' },
+  { symbol: 'XRP', name: 'Ripple', tvSymbol: 'XRPUSD' },
+];
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -43,28 +29,44 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const symbols = Object.values(CRYPTO_MAPPING);
-    const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Binance API error: ${response.status}`);
-    }
-    
-    const data: BinanceTickerResponse[] = await response.json();
-    
-    const cryptos: CryptoData[] = Object.entries(CRYPTO_MAPPING).map(([symbol, binanceSymbol]) => {
-      const ticker = data.find(t => t.symbol === binanceSymbol);
-      
-      return {
-        symbol,
-        name: CRYPTO_NAMES[symbol],
-        price: ticker ? parseFloat(ticker.lastPrice) : 0,
-        change: ticker ? parseFloat(ticker.priceChangePercent) : 0,
-      };
-    });
-    
+    const cryptos: CryptoData[] = await Promise.all(
+      CRYPTOS.map(async (crypto) => {
+        try {
+          const url = `https://api.tvapi.io/v1/quotes?symbols=${crypto.tvSymbol}`;
+
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            console.error(`TradingView API error for ${crypto.symbol}: ${response.status}`);
+            return {
+              symbol: crypto.symbol,
+              name: crypto.name,
+              price: 0,
+              change: 0,
+            };
+          }
+
+          const data = await response.json();
+          const quote = data[0];
+
+          return {
+            symbol: crypto.symbol,
+            name: crypto.name,
+            price: quote?.lp || 0,
+            change: quote?.chp || 0,
+          };
+        } catch (error) {
+          console.error(`Error fetching ${crypto.symbol}:`, error);
+          return {
+            symbol: crypto.symbol,
+            name: crypto.name,
+            price: 0,
+            change: 0,
+          };
+        }
+      })
+    );
+
     return new Response(
       JSON.stringify({ cryptos }),
       {
@@ -75,10 +77,10 @@ Deno.serve(async (req: Request) => {
       }
     );
   } catch (error) {
-    console.error('Error fetching Binance prices:', error);
-    
+    console.error('Error fetching TradingView prices:', error);
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Failed to fetch crypto prices',
         message: error instanceof Error ? error.message : 'Unknown error'
       }),

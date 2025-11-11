@@ -111,7 +111,7 @@ export const CryptoView = () => {
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <div className="flex justify-between items-center">
           <p className="text-gray-400 text-sm">
-            Datos en tiempo real de Binance API. Precios actualizados cada 30 segundos.
+            Datos en tiempo real de TradingView API. Precios actualizados cada 30 segundos.
           </p>
           {lastUpdate && (
             <p className="text-gray-500 text-xs">

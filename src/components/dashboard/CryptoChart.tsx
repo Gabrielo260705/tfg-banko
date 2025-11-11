@@ -40,25 +40,27 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
 
     const fetchChartData = async () => {
       try {
-        const binanceSymbol = `${symbol}USDT`;
-        const endTime = Date.now();
-        const startTime = endTime - 7 * 24 * 60 * 60 * 1000;
+        const tvSymbol = `${symbol}USD`;
+        const endTime = Math.floor(Date.now() / 1000);
+        const startTime = endTime - 7 * 24 * 60 * 60;
 
-        const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime}&endTime=${endTime}&limit=168`;
+        const url = `https://api.tvapi.io/v1/history?symbol=${tvSymbol}&resolution=60&from=${startTime}&to=${endTime}`;
 
         const response = await fetch(url);
         const data = await response.json();
 
-        const formattedData = data.map((d: any) => ({
-          time: d[0] / 1000,
-          open: parseFloat(d[1]),
-          high: parseFloat(d[2]),
-          low: parseFloat(d[3]),
-          close: parseFloat(d[4]),
-        }));
+        if (data.t && data.o && data.h && data.l && data.c) {
+          const formattedData = data.t.map((time: number, i: number) => ({
+            time,
+            open: data.o[i],
+            high: data.h[i],
+            low: data.l[i],
+            close: data.c[i],
+          }));
 
-        candlestickSeries.setData(formattedData);
-        chart.timeScale().fitContent();
+          candlestickSeries.setData(formattedData);
+          chart.timeScale().fitContent();
+        }
       } catch (error) {
         console.error('Error fetching chart data:', error);
       }
