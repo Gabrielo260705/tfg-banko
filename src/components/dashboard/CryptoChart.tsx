@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 
 interface CryptoChartProps {
   symbol: string;
@@ -30,7 +30,7 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
       },
     });
 
-    const candlestickSeries = chart.addSeries('Candlestick', {
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderVisible: false,
@@ -58,6 +58,7 @@ export const CryptoChart = ({ symbol, name, onClose }: CryptoChartProps) => {
         }));
 
         candlestickSeries.setData(formattedData);
+        chart.timeScale().fitContent();
       } catch (error) {
         console.error('Error fetching chart data:', error);
       }
