@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { CryptoChart } from './CryptoChart';
 
 interface Crypto {
   symbol: string;
@@ -13,6 +14,7 @@ export const CryptoView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [selectedCrypto, setSelectedCrypto] = useState<Crypto | null>(null);
 
   const fetchCryptoPrices = async () => {
     try {
@@ -96,7 +98,7 @@ export const CryptoView = () => {
                 ${crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <button
-                onClick={() => alert(`Gráfico de ${crypto.name} - Esta funcionalidad se integrará con una API de gráficos en el futuro`)}
+                onClick={() => setSelectedCrypto(crypto)}
                 className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 Ver Gráfico
@@ -118,6 +120,14 @@ export const CryptoView = () => {
           )}
         </div>
       </div>
+
+      {selectedCrypto && (
+        <CryptoChart
+          symbol={selectedCrypto.symbol}
+          name={selectedCrypto.name}
+          onClose={() => setSelectedCrypto(null)}
+        />
+      )}
     </div>
   );
 };
